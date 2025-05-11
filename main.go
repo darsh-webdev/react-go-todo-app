@@ -15,7 +15,7 @@ import (
 )
 
 type Todo struct {
-	ID        primitive.ObjectID `json:"id" bson:"_id"`
+	ID        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Completed bool               `json:"completed"`
 	Body      string             `json:"body"`
 }
@@ -34,11 +34,11 @@ func main() {
 	clientOptions := options.Client().ApplyURI(MONGODB_URI)
 	client, err := mongo.Connect(context.Background(), clientOptions)
 
-	defer client.Disconnect(context.Background())
-
 	if err != nil {
 		log.Fatal("Error connecting to MongoDB")
 	}
+
+	defer client.Disconnect(context.Background())
 
 	err = client.Ping(context.Background(), nil)
 	if err != nil {
