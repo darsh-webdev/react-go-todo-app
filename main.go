@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,7 +16,7 @@ import (
 )
 
 type Todo struct {
-	ID        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	Completed bool               `json:"completed"`
 	Body      string             `json:"body"`
 }
@@ -51,6 +52,12 @@ func main() {
 
 	app := fiber.New()
 
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "http://localhost:5174",
+		AllowHeaders: "*",
+		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+	}))
+
 	app.Get("/api/todos", getTodos)
 	app.Post("/api/todos", createTodo)
 	app.Patch("/api/todo/:id", updateTodo)
@@ -70,7 +77,7 @@ func getTodos(c *fiber.Ctx) error {
 	cursor, err := collection.Find(context.Background(), bson.M{})
 
 	if err != nil {
-		return err
+		return c.Status(400).JSON(fiber.Map{"error": "Error fetching todos"})
 	}
 
 	defer cursor.Close(context.Background())
@@ -100,7 +107,7 @@ func createTodo(c *fiber.Ctx) error {
 	insertResult, err := collection.InsertOne(context.Background(), todo)
 
 	if err != nil {
-		return err
+		return c.Status(400).JSON(fiber.Map{"error": "Error creating todo"})
 	}
 
 	todo.ID = insertResult.InsertedID.(primitive.ObjectID)
@@ -121,7 +128,7 @@ func updateTodo(c *fiber.Ctx) error {
 
 	_, err = collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
-		return err
+		return c.Status(400).JSON(fiber.Map{"error": "Error deleting todo"})
 	}
 
 	return c.Status(200).JSON(fiber.Map{"success": true})
@@ -140,7 +147,7 @@ func deleteTodo(c *fiber.Ctx) error {
 	_, err = collection.DeleteOne(context.Background(), filter)
 
 	if err != nil {
-		return err
+		return c.Status(400).JSON(fiber.Map{"error": "Error deleting todo"})
 	}
 
 	return c.Status(200).JSON(fiber.Map{"success": true})

@@ -1,31 +1,33 @@
 import { Flex, Spinner, Stack, Text } from "@chakra-ui/react";
-import { useState } from "react";
 import TodoItem from "./TodoItem";
+import { useQuery } from "@tanstack/react-query";
+import { BASE_URL } from "../../App";
+
+export type Todo = {
+  _id: number;
+  body: string;
+  completed: boolean;
+};
 
 const TodoList = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const todos = [
-    {
-      _id: 1,
-      body: "Buy groceries",
-      completed: true,
+  const { data: todos, isLoading } = useQuery<Todo[]>({
+    queryKey: ["todos"],
+    queryFn: async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/todos`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Error fetching todo data");
+        }
+
+        return data || [];
+      } catch (error) {
+        console.log(error);
+      }
     },
-    {
-      _id: 2,
-      body: "Walk the dog",
-      completed: false,
-    },
-    {
-      _id: 3,
-      body: "Do laundry",
-      completed: false,
-    },
-    {
-      _id: 4,
-      body: "Cook dinner",
-      completed: true,
-    },
-  ];
+  });
+
   return (
     <>
       <Text
@@ -47,13 +49,14 @@ const TodoList = () => {
           <Text fontSize={"xl"} textAlign={"center"} color={"gray.500"}>
             All tasks completed! 🤞
           </Text>
-          <img src="/go.png" alt="Go logo" width={70} height={70} />
         </Stack>
       )}
       <Stack gap={3} border={"5"}>
-        {todos?.map((todo) => (
-          <TodoItem key={todo._id} todo={todo} />
-        ))}
+        {todos
+          ?.sort((a, b) => Number(b.completed) - Number(a.completed))
+          .map((todo) => (
+            <TodoItem key={todo._id} todo={todo} />
+          ))}
       </Stack>
     </>
   );
