@@ -27,7 +27,7 @@ func main() {
 	fmt.Println("Building a Todo app with React and Go")
 
 	err := godotenv.Load(".env")
-	if err != nil {
+	if err != nil{
 		log.Fatal("Error loading .env file")
 	}
 
@@ -53,7 +53,7 @@ func main() {
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:5174",
+		AllowOrigins: "*",
 		AllowHeaders: "*",
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 	}))
