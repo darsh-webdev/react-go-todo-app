@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BASE_URL } from "../../App";
 
 export type Todo = {
-  _id: number;
+  id: number;
   body: string;
   completed: boolean;
 };
@@ -55,7 +55,7 @@ const TodoList = () => {
         {todos
           ?.sort((a, b) => Number(b.completed) - Number(a.completed))
           .map((todo) => (
-            <TodoItem key={todo._id} todo={todo} />
+            <TodoItem key={todo.id} todo={todo} />
           ))}
       </Stack>
     </>

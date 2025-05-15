@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,46 +9,50 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type Todo struct {
-	ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Completed bool               `json:"completed"`
-	Body      string             `json:"body"`
+	ID        uint   `json:"id" gorm:"primaryKey"`
+	Body      string `json:"body"`
+	Completed bool   `json:"completed" gorm:"default:false"`
 }
 
-var collection *mongo.Collection
+var db *gorm.DB
 
 func main() {
 	fmt.Println("Building a Todo app with React and Go")
 
 	err := godotenv.Load(".env")
-	if err != nil{
+	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	MONGODB_URI := os.Getenv("MONGODB_URI")
-	clientOptions := options.Client().ApplyURI(MONGODB_URI)
-	client, err := mongo.Connect(context.Background(), clientOptions)
+	POSTGRESQL_URI := os.Getenv("POSTGRESQL_URI")
+	dsn := POSTGRESQL_URI
 
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Error connecting to MongoDB")
+		log.Fatal("Failed to connect to database:", err)
 	}
 
-	defer client.Disconnect(context.Background())
+	// Run migrations
+	err = db.AutoMigrate(&Todo{})
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
 
-	err = client.Ping(context.Background(), nil)
+	// Get the underlying *sql.DB
+	sqlDB, err := db.DB()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Connected to MongoDB")
+	// Close the connection when you're done
+	defer sqlDB.Close()
 
-	collection = client.Database("golang-todo-app").Collection("todos")
+	fmt.Println("Connected to PostgreSQL")
 
 	router := gin.New()
 
@@ -70,35 +73,28 @@ func main() {
 	}
 
 	log.Fatal(router.Run("0.0.0.0:" + port))
+
 }
 
 func getTodos(c *gin.Context) {
 	var todos []Todo
 
-	cursor, err := collection.Find(context.Background(), bson.M{})
+	result := db.Find(&todos)
 
-	if err != nil {
-		c.String(http.StatusBadRequest, "Error fetching todos")
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Error fetching todos: " + result.Error.Error(),
+		})
 		return
 	}
 
-	defer cursor.Close(context.Background())
-
-	for cursor.Next(context.Background()) {
-		var todo Todo
-		if err := cursor.Decode(&todo); err != nil {
-			log.Fatal(err)
-			return
-		}
-		todos = append(todos, todo)
-	}
 	c.JSON(http.StatusOK, todos)
 }
 
 func createTodo(c *gin.Context) {
 	todo := new(Todo)
 
-	if err := c.ShouldBindBodyWithJSON(todo); err != nil {
+	if err := c.ShouldBindJSON(todo); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -108,31 +104,31 @@ func createTodo(c *gin.Context) {
 		return
 	}
 
-	insertResult, err := collection.InsertOne(context.Background(), todo)
+	result := db.Create(&todo)
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Error creating todo"})
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating todo"})
 		return
 	}
 
-	todo.ID = insertResult.InsertedID.(primitive.ObjectID)
 	c.JSON(http.StatusOK, todo)
 }
 
 func updateTodo(c *gin.Context) {
 	id := c.Param("id")
-	objectID, err := primitive.ObjectIDFromHex(id)
 
-	if err != nil {
+	// Check is ID is valid
+	var todo Todo
+
+	result := db.First(&todo, id)
+	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
 		return
 	}
 
-	filter := bson.M{"_id": objectID}
-	update := bson.M{"$set": bson.M{"completed": true}}
-
-	_, err = collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
+	// Update the completed status
+	result = db.Model(&todo).Update("completed", true)
+	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating todo"})
 		return
 	}
@@ -142,17 +138,19 @@ func updateTodo(c *gin.Context) {
 
 func deleteTodo(c *gin.Context) {
 	id := c.Param("id")
-	objectID, err := primitive.ObjectIDFromHex(id)
 
-	if err != nil {
+	// Check is ID is valid
+	var todo Todo
+
+	result := db.First(&todo, id)
+	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
 		return
 	}
 
-	filter := bson.M{"_id": objectID}
-	_, err = collection.DeleteOne(context.Background(), filter)
-
-	if err != nil {
+	// Delete the todo
+	result = db.Delete(&todo)
+	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting todo"})
 		return
 	}

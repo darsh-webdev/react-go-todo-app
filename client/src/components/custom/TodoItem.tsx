@@ -20,7 +20,7 @@ const TodoItem = ({ todo }: { todo: Todo }) => {
       }
 
       try {
-        const res = await fetch(`${BASE_URL}/todo/${todo._id}`, {
+        const res = await fetch(`${BASE_URL}/todo/${todo.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -46,7 +46,7 @@ const TodoItem = ({ todo }: { todo: Todo }) => {
     mutationKey: ["deleteTodo"],
     mutationFn: async () => {
       try {
-        const res = await fetch(`${BASE_URL}/todo/${todo._id}`, {
+        const res = await fetch(`${BASE_URL}/todo/${todo.id}`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
