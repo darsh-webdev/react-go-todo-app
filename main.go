@@ -117,7 +117,7 @@ func createTodo(c *gin.Context) {
 func updateTodo(c *gin.Context) {
 	id := c.Param("id")
 
-	// Check is ID is valid
+	// Check if ID is valid
 	var todo Todo
 
 	result := db.First(&todo, id)
@@ -139,7 +139,7 @@ func updateTodo(c *gin.Context) {
 func deleteTodo(c *gin.Context) {
 	id := c.Param("id")
 
-	// Check is ID is valid
+	// Check if ID is valid
 	var todo Todo
 
 	result := db.First(&todo, id)
