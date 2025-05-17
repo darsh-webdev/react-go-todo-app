@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -24,15 +23,18 @@ var db *gorm.DB
 func main() {
 	fmt.Println("Building a Todo app with React and Go")
 
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if os.Getenv("ENV") != "production" {
+		// Load .env file only when in development
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
 	}
 
 	POSTGRESQL_URI := os.Getenv("POSTGRESQL_URI")
 	dsn := POSTGRESQL_URI
 
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -56,11 +58,12 @@ func main() {
 
 	router := gin.New()
 
-	router.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:5174"},
-		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"*"},
-	}))
+	// CORS not needed during production
+	// router.Use(cors.New(cors.Config{
+	// 	AllowOrigins: []string{"http://localhost:5174"},
+	// 	AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+	// 	AllowHeaders: []string{"*"},
+	// }))
 
 	router.GET("/api/todos", getTodos)
 	router.POST("/api/todos", createTodo)
@@ -70,6 +73,10 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "4000"
+	}
+
+	if os.Getenv("ENV") == "production" {
+		router.Static("/", "./client/dist")
 	}
 
 	log.Fatal(router.Run("0.0.0.0:" + port))
