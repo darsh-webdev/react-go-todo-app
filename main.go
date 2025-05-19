@@ -18,7 +18,7 @@ type Todo struct {
 	Completed bool   `json:"completed" gorm:"default:false"`
 }
 
-var db *gorm.DB
+var db *gorm.DB // Global declaration
 
 func main() {
 	fmt.Println("Building a Todo app with React and Go")
@@ -34,7 +34,8 @@ func main() {
 	POSTGRESQL_URI := os.Getenv("POSTGRESQL_URI")
 	dsn := POSTGRESQL_URI
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	var err error // Declare err separately	
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -44,15 +45,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
-
-	// Get the underlying *sql.DB
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Close the connection when you're done
-	defer sqlDB.Close()
 
 	fmt.Println("Connected to PostgreSQL")
 
